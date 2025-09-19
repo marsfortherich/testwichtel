@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wichtel-App</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #333;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            padding: 40px;
+            width: 100%;
+            max-width: 500px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .screen {
+            display: none;
+        }
+
+        .screen.active {
+            display: block;
+        }
+
+        h1 {
+            color: #4a5568;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            font-weight: 300;
+        }
+
+        h2 {
+            color: #2d3748;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            font-weight: 400;
+        }
+
+        input {
+            width: 100%;
+            padding: 15px;
+            margin: 10px 0;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            background: rgba(255,255,255,0.9);
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            transform: translateY(-2px);
+        }
+
+        button {
+            width: 100%;
+            padding: 15px;
+            margin: 10px 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .secondary-btn {
+            background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+            box-shadow: 0 4px 15px rgba(72, 187, 120, 0.3);
+        }
+
+        .secondary-btn:hover {
+            box-shadow: 0 6px 20px rgba(72, 187, 120, 0.4);
+        }
+
+        .room-code {
+            background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            font-size: 2em;
+            font-weight: bold;
+            margin: 20px 0;
+            letter-spacing: 0.2em;
+            box-shadow: 0 8px 25px rgba(237, 137, 54, 0.3);
+        }
+
+        .participants {
+            background: #f7fafc;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: left;
+        }
+
+        .participant {
+            padding: 10px;
+            margin: 5px 0;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .participant.host {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .your-wichtel {
+            background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            font-size: 1.5em;
+            font-weight: bold;
+            margin: 20px 0;
+            box-shadow: 0 8px 25px rgba(72, 187, 120, 0.3);
+        }
+
+        .wichtel-results {
+            background: #f7fafc;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: left;
+        }
+
+        .wichtel-pair {
+            padding: 12px;
+            margin: 8px 0;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border-left: 4px solid #667eea;
+        }
+
+        .error {
+            color: #e53e3e;
+            background: #fed7d7;
+            padding: 10px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+
+        .success {
+            color: #38a169;
+            background: #c6f6d5;
+            padding: 10px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Name eingeben Screen -->
+        <div id="nameScreen" class="screen active">
+            <h1>🎁 Wichtel-App</h1>
+            <input type="text" id="nameInput" placeholder="Dein Name" maxlength="20">
+            <button onclick="enterName()">Weiter</button>
+        </div>
+
+        <!-- Raum wählen Screen -->
+        <div id="choiceScreen" class="screen">
+            <h2>Hallo <span id="welcomeName"></span>!</h2>
+            <button onclick="showCreateRoom()">Neuen Raum erstellen</button>
+            <button onclick="showJoinRoom()" class="secondary-btn">Raum beitreten</button>
+        </div>
+
+        <!-- Raum erstellen Screen -->
+        <div id="createRoomScreen" class="screen">
+            <h2>Raum erstellen</h2>
+            <p>Dein Raum-Code:</p>
+            <div class="room-code" id="roomCode"></div>
+            <p>Teile diesen Code mit anderen!</p>
+            <div class="participants">
+                <h3>Teilnehmer:</h3>
+                <div id="participantsList"></div>
+            </div>
+            <button onclick="startWichteln()" id="wichtelBtn">Wichteln starten</button>
+            <button onclick="goBack()" class="secondary-btn">Zurück</button>
+        </div>
+
+        <!-- Raum beitreten Screen -->
+        <div id="joinRoomScreen" class="screen">
+            <h2>Raum beitreten</h2>
+            <input type="text" id="roomCodeInput" placeholder="Raum-Code eingeben" maxlength="2">
+            <button onclick="joinRoom()">Beitreten</button>
+            <button onclick="goBack()" class="secondary-btn">Zurück</button>
+            <div id="joinMessage"></div>
+        </div>
+
+        <!-- Warten Screen -->
+        <div id="waitingScreen" class="screen">
+            <h2>Raum <span id="currentRoomCode"></span></h2>
+            <div class="participants">
+                <h3>Teilnehmer:</h3>
+                <div id="waitingParticipantsList"></div>
+            </div>
+            <p>Warte auf den Raum-Ersteller...</p>
+            <div class="loading"></div>
+            <button onclick="leaveRoom()" class="secondary-btn">Raum verlassen</button>
+        </div>
+
+        <!-- Wichtel Ergebnis Screen -->
+        <div id="resultScreen" class="screen">
+            <h2>🎄 Wichtel-Ergebnis</h2>
+            <div class="your-wichtel">
+                Du wichtelst für: <br><strong id="yourWichtel"></strong>
+            </div>
+            
+            <!-- Nur für Raum-Ersteller -->
+            <div id="hostResults" style="display: none;">
+                <div class="wichtel-results">
+                    <h3>Alle Wichtel-Paare:</h3>
+                    <div id="allWichtelPairs"></div>
+                </div>
+            </div>
+            
+            <button onclick="startOver()" class="secondary-btn">Neue Runde</button>
+        </div>
+    </div>
+
+    <script>
+        // Globale Variablen
+        let userName = '';
+        let currentRoom = null;
+        let isHost = false;
+        let rooms = {};
+        let wichtelResults = {};
+
+        // Utility Funktionen
+        function generateRoomCode() {
+            return Math.floor(10 + Math.random() * 90).toString();
+        }
+
+        function shuffleArray(array) {
+            const shuffled = [...array];
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+            return shuffled;
+        }
+
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(screen => {
+                screen.classList.remove('active');
+            });
+            document.getElementById(screenId).classList.add('active');
+            document.getElementById(screenId).classList.add('fade-in');
+        }
+
+        function showMessage(elementId, message, type = 'error') {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `<div class="${type}">${message}</div>`;
+            setTimeout(() => element.innerHTML = '', 5000);
+        }
+
+        // Name eingeben
+        function enterName() {
+            const nameInput = document.getElementById('nameInput').value.trim();
+            if (!nameInput) {
+                showMessage('nameScreen', 'Bitte gib deinen Namen ein!', 'error');
+                return;
+            }
+            userName = nameInput;
+            document.getElementById('welcomeName').textContent = userName;
+            showScreen('choiceScreen');
+        }
+
+        // Navigation
+        function showCreateRoom() {
+            const roomCode = generateRoomCode();
+            currentRoom = roomCode;
+            isHost = true;
+            
+            // Raum erstellen
+            rooms[roomCode] = {
+                host: userName,
+                participants: [userName],
+                wichtelActive: false
+            };
+            
+            document.getElementById('roomCode').textContent = roomCode;
+            updateParticipantsList('participantsList', rooms[roomCode].participants, userName);
+            showScreen('createRoomScreen');
+        }
+
+        function showJoinRoom() {
+            showScreen('joinRoomScreen');
+        }
+
+        function goBack() {
+            if (currentRoom && isHost) {
+                delete rooms[currentRoom];
+            }
+            currentRoom = null;
+            isHost = false;
+            showScreen('choiceScreen');
+        }
+
+        // Raum beitreten
+        function joinRoom() {
+            const roomCode = document.getElementById('roomCodeInput').value.trim().toUpperCase();
+            if (!roomCode || roomCode.length !== 2) {
+                showMessage('joinMessage', 'Bitte gib einen 2-stelligen Raum-Code ein!', 'error');
+                return;
+            }
+
+            if (!rooms[roomCode]) {
+                showMessage('joinMessage', 'Raum nicht gefunden!', 'error');
+                return;
+            }
+
+            if (rooms[roomCode].participants.includes(userName)) {
+                showMessage('joinMessage', 'Du bist bereits in diesem Raum!', 'error');
+                return;
+            }
+
+            if (rooms[roomCode].wichtelActive) {
+                showMessage('joinMessage', 'Das Wichteln in diesem Raum hat bereits begonnen!', 'error');
+                return;
+            }
+
+            // Dem Raum beitreten
+            rooms[roomCode].participants.push(userName);
+            currentRoom = roomCode;
+            isHost = false;
+
+            document.getElementById('currentRoomCode').textContent = roomCode;
+            updateParticipantsList('waitingParticipantsList', rooms[roomCode].participants, rooms[roomCode].host);
+            showScreen('waitingScreen');
+
+            showMessage('joinMessage', 'Erfolgreich dem Raum beigetreten!', 'success');
+        }
+
+        // Teilnehmerliste aktualisieren
+        function updateParticipantsList(listId, participants, host) {
+            const list = document.getElementById(listId);
+            list.innerHTML = '';
+            
+            participants.forEach(participant => {
+                const div = document.createElement('div');
+                div.className = 'participant';
+                if (participant === host) {
+                    div.classList.add('host');
+                    div.innerHTML = `
+                        <span>${participant}</span>
+                        <span>👑 Host</span>
+                    `;
+                } else {
+                    div.innerHTML = `<span>${participant}</span>`;
+                }
+                list.appendChild(div);
+            });
+        }
+
+        // Wichteln starten
+        function startWichteln() {
+            if (!currentRoom || !isHost) return;
+
+            const participants = rooms[currentRoom].participants;
+            if (participants.length < 2) {
+                showMessage('createRoomScreen', 'Mindestens 2 Teilnehmer sind erforderlich!', 'error');
+                return;
+            }
+
+            // Wichtel-Paare generieren
+            let receivers = shuffleArray(participants);
+            
+            // Sicherstellen, dass niemand sich selbst zieht
+            let attempts = 0;
+            while (attempts < 100) {
+                let valid = true;
+                for (let i = 0; i < participants.length; i++) {
+                    if (participants[i] === receivers[i]) {
+                        valid = false;
+                        break;
+                    }
+                }
+                if (valid) break;
+                receivers = shuffleArray(participants);
+                attempts++;
+            }
+
+            // Ergebnisse speichern
+            wichtelResults[currentRoom] = {};
+            for (let i = 0; i < participants.length; i++) {
+                wichtelResults[currentRoom][participants[i]] = receivers[i];
+            }
+
+            rooms[currentRoom].wichtelActive = true;
+
+            // Ergebnisse anzeigen
+            showWichtelResult();
+        }
+
+        // Wichtel-Ergebnis anzeigen
+        function showWichtelResult() {
+            const yourWichtel = wichtelResults[currentRoom][userName];
+            document.getElementById('yourWichtel').textContent = yourWichtel;
+
+            // Host-spezifische Anzeige
+            if (isHost) {
+                document.getElementById('hostResults').style.display = 'block';
+                const pairsList = document.getElementById('allWichtelPairs');
+                pairsList.innerHTML = '';
+
+                Object.entries(wichtelResults[currentRoom]).forEach(([giver, receiver]) => {
+                    const div = document.createElement('div');
+                    div.className = 'wichtel-pair';
+                    div.innerHTML = `<strong>${giver}</strong> wichtelt für <strong>${receiver}</strong>`;
+                    pairsList.appendChild(div);
+                });
+            }
+
+            showScreen('resultScreen');
+        }
+
+        // Raum verlassen
+        function leaveRoom() {
+            if (currentRoom && rooms[currentRoom]) {
+                const index = rooms[currentRoom].participants.indexOf(userName);
+                if (index > -1) {
+                    rooms[currentRoom].participants.splice(index, 1);
+                }
+                
+                // Wenn der Host den Raum verlässt, Raum löschen
+                if (isHost) {
+                    delete rooms[currentRoom];
+                }
+            }
+            
+            currentRoom = null;
+            isHost = false;
+            showScreen('choiceScreen');
+        }
+
+        // Neue Runde starten
+        function startOver() {
+            if (currentRoom) {
+                delete wichtelResults[currentRoom];
+                if (rooms[currentRoom]) {
+                    rooms[currentRoom].wichtelActive = false;
+                }
+            }
+            currentRoom = null;
+            isHost = false;
+            showScreen('choiceScreen');
+        }
+
+        // Simuliere Echtzeit-Updates für Teilnehmer (in einer echten App würde man WebSockets verwenden)
+        setInterval(() => {
+            if (currentRoom && !isHost && rooms[currentRoom]) {
+                // Update der Teilnehmerliste für wartende Spieler
+                if (document.getElementById('waitingScreen').classList.contains('active')) {
+                    updateParticipantsList('waitingParticipantsList', rooms[currentRoom].participants, rooms[currentRoom].host);
+                    
+                    // Prüfen, ob das Wichteln gestartet wurde
+                    if (rooms[currentRoom].wichtelActive && wichtelResults[currentRoom]) {
+                        showWichtelResult();
+                    }
+                }
+            }
+        }, 1000);
+
+        // Enter-Taste Support
+        document.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                if (document.getElementById('nameScreen').classList.contains('active')) {
+                    enterName();
+                } else if (document.getElementById('joinRoomScreen').classList.contains('active')) {
+                    joinRoom();
+                }
+            }
+        });
+
+        // Auto-Focus auf Input-Felder
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('nameInput').focus();
+        });
+    </script>
+</body>
+</html>
