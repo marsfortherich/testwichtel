@@ -716,18 +716,25 @@
             showScreen('choiceScreen');
         }
 
-        // Regelmäßige Updates für Teilnehmer
+        // Regelmäßige Updates für alle Nutzer
         setInterval(() => {
-            if (currentRoom && !isHost) {
+            if (currentRoom) {
                 const roomData = loadRoomData(currentRoom);
                 if (roomData) {
-                    // Update der Teilnehmerliste für wartende Spieler
-                    if (document.getElementById('waitingScreen').classList.contains('active')) {
-                        updateParticipantsList('waitingParticipantsList', roomData.participants, roomData.host);
-                        
-                        // Prüfen, ob das Wichteln gestartet wurde
-                        if (roomData.wichtelActive && roomData.wichtelResults) {
-                            showWichtelResult();
+                    if (isHost) {
+                        // Host: Update der Teilnehmerliste im Ersteller-Screen
+                        if (document.getElementById('createRoomScreen').classList.contains('active')) {
+                            updateParticipantsList('participantsList', roomData.participants, userName);
+                        }
+                    } else {
+                        // Teilnehmer: Update der Teilnehmerliste im Warten-Screen
+                        if (document.getElementById('waitingScreen').classList.contains('active')) {
+                            updateParticipantsList('waitingParticipantsList', roomData.participants, roomData.host);
+                            
+                            // Prüfen, ob das Wichteln gestartet wurde
+                            if (roomData.wichtelActive && roomData.wichtelResults) {
+                                showWichtelResult();
+                            }
                         }
                     }
                 }
