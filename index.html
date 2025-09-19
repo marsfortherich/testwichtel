@@ -118,6 +118,23 @@
             box-shadow: 0 8px 25px rgba(237, 137, 54, 0.3);
         }
 
+        .share-link {
+            background: #f7fafc;
+            border: 2px dashed #cbd5e0;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 20px 0;
+            word-break: break-all;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .share-link:hover {
+            background: #edf2f7;
+            border-color: #a0aec0;
+        }
+
         .participants {
             background: #f7fafc;
             border-radius: 10px;
@@ -186,6 +203,15 @@
             margin: 10px 0;
         }
 
+        .info {
+            color: #3182ce;
+            background: #bee3f8;
+            padding: 10px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-size: 14px;
+        }
+
         .loading {
             display: inline-block;
             width: 20px;
@@ -208,6 +234,19 @@
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
         }
+
+        .copy-btn {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            box-shadow: 0 4px 15px rgba(240, 147, 251, 0.3);
+            width: auto;
+            padding: 10px 20px;
+            font-size: 14px;
+            margin: 5px;
+        }
+
+        .copy-btn:hover {
+            box-shadow: 0 6px 20px rgba(240, 147, 251, 0.4);
+        }
     </style>
 </head>
 <body>
@@ -217,6 +256,7 @@
             <h1>🎁 Wichtel-App</h1>
             <input type="text" id="nameInput" placeholder="Dein Name" maxlength="20">
             <button onclick="enterName()">Weiter</button>
+            <div id="nameMessage"></div>
         </div>
 
         <!-- Raum wählen Screen -->
@@ -228,16 +268,26 @@
 
         <!-- Raum erstellen Screen -->
         <div id="createRoomScreen" class="screen">
-            <h2>Raum erstellen</h2>
+            <h2>Raum erstellt!</h2>
             <p>Dein Raum-Code:</p>
             <div class="room-code" id="roomCode"></div>
-            <p>Teile diesen Code mit anderen!</p>
+            
+            <div class="info">
+                Teile diesen Link mit anderen:
+            </div>
+            <div class="share-link" id="shareLink" onclick="copyLink()">
+                <span id="shareLinkText"></span>
+                <br>
+                <button class="copy-btn" onclick="copyLink(event)">📋 Link kopieren</button>
+            </div>
+            
             <div class="participants">
                 <h3>Teilnehmer:</h3>
                 <div id="participantsList"></div>
             </div>
             <button onclick="startWichteln()" id="wichtelBtn">Wichteln starten</button>
             <button onclick="goBack()" class="secondary-btn">Zurück</button>
+            <div id="createMessage"></div>
         </div>
 
         <!-- Raum beitreten Screen -->
@@ -259,6 +309,7 @@
             <p>Warte auf den Raum-Ersteller...</p>
             <div class="loading"></div>
             <button onclick="leaveRoom()" class="secondary-btn">Raum verlassen</button>
+            <div id="waitingMessage"></div>
         </div>
 
         <!-- Wichtel Ergebnis Screen -->
@@ -285,8 +336,6 @@
         let userName = '';
         let currentRoom = null;
         let isHost = false;
-        let rooms = {};
-        let wichtelResults = {};
 
         // Utility Funktionen
         function generateRoomCode() {
@@ -316,15 +365,113 @@
             setTimeout(() => element.innerHTML = '', 5000);
         }
 
+        // Raum-Daten speichern und laden
+        function saveRoomData(roomCode, data) {
+            const key = `wichtel_room_${roomCode}`;
+            data.lastUpdate = Date.now();
+            const jsonData = JSON.stringify(data);
+            
+            // Versuche localStorage
+            try {
+                localStorage.setItem(key, jsonData);
+                
+                // Zusätzlich in URL-Hash für Sharing
+                if (isHost) {
+                    const encoded = btoa(jsonData);
+                    window.location.hash = `room=${roomCode}&data=${encoded}`;
+                }
+            } catch (e) {
+                console.warn('LocalStorage nicht verfügbar:', e);
+            }
+        }
+
+        function loadRoomData(roomCode) {
+            const key = `wichtel_room_${roomCode}`;
+            
+            // Versuche aus URL-Hash zu laden
+            const hash = window.location.hash;
+            if (hash) {
+                const params = new URLSearchParams(hash.substring(1));
+                const urlRoomCode = params.get('room');
+                const urlData = params.get('data');
+                
+                if (urlRoomCode === roomCode && urlData) {
+                    try {
+                        const decoded = atob(urlData);
+                        return JSON.parse(decoded);
+                    } catch (e) {
+                        console.warn('Fehler beim Laden aus URL:', e);
+                    }
+                }
+            }
+            
+            // Fallback: localStorage
+            try {
+                const data = localStorage.getItem(key);
+                return data ? JSON.parse(data) : null;
+            } catch (e) {
+                console.warn('Fehler beim Laden aus localStorage:', e);
+                return null;
+            }
+        }
+
+        function getAllRoomCodes() {
+            const codes = [];
+            
+            // Aus localStorage
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && key.startsWith('wichtel_room_')) {
+                    const roomCode = key.replace('wichtel_room_', '');
+                    codes.push(roomCode);
+                }
+            }
+            
+            // Aus URL
+            const hash = window.location.hash;
+            if (hash) {
+                const params = new URLSearchParams(hash.substring(1));
+                const urlRoomCode = params.get('room');
+                if (urlRoomCode && !codes.includes(urlRoomCode)) {
+                    codes.push(urlRoomCode);
+                }
+            }
+            
+            return codes;
+        }
+
         // Name eingeben
         function enterName() {
             const nameInput = document.getElementById('nameInput').value.trim();
             if (!nameInput) {
-                showMessage('nameScreen', 'Bitte gib deinen Namen ein!', 'error');
+                showMessage('nameMessage', 'Bitte gib deinen Namen ein!', 'error');
                 return;
             }
             userName = nameInput;
             document.getElementById('welcomeName').textContent = userName;
+            
+            // Prüfe ob über Link beigetreten
+            checkForRoomInURL();
+        }
+
+        function checkForRoomInURL() {
+            const hash = window.location.hash;
+            if (hash) {
+                const params = new URLSearchParams(hash.substring(1));
+                const roomCode = params.get('room');
+                
+                if (roomCode) {
+                    const roomData = loadRoomData(roomCode);
+                    if (roomData && !roomData.wichtelActive) {
+                        // Automatisch dem Raum beitreten
+                        document.getElementById('roomCodeInput').value = roomCode;
+                        showScreen('joinRoomScreen');
+                        showMessage('joinMessage', 'Raum aus Link erkannt! Klicke auf "Beitreten".', 'info');
+                        return;
+                    }
+                }
+            }
+            
             showScreen('choiceScreen');
         }
 
@@ -335,14 +482,22 @@
             isHost = true;
             
             // Raum erstellen
-            rooms[roomCode] = {
+            const roomData = {
                 host: userName,
                 participants: [userName],
-                wichtelActive: false
+                wichtelActive: false,
+                wichtelResults: {}
             };
             
+            saveRoomData(roomCode, roomData);
+            
             document.getElementById('roomCode').textContent = roomCode;
-            updateParticipantsList('participantsList', rooms[roomCode].participants, userName);
+            
+            // Share-Link erstellen
+            const shareLink = `${window.location.origin}${window.location.pathname}#room=${roomCode}&data=${btoa(JSON.stringify(roomData))}`;
+            document.getElementById('shareLinkText').textContent = shareLink;
+            
+            updateParticipantsList('participantsList', roomData.participants, userName);
             showScreen('createRoomScreen');
         }
 
@@ -351,44 +506,85 @@
         }
 
         function goBack() {
-            if (currentRoom && isHost) {
-                delete rooms[currentRoom];
-            }
+            // Hash entfernen
+            window.location.hash = '';
             currentRoom = null;
             isHost = false;
             showScreen('choiceScreen');
         }
 
+        // Link kopieren
+        function copyLink(event) {
+            if (event) {
+                event.stopPropagation();
+            }
+            
+            const linkText = document.getElementById('shareLinkText').textContent;
+            
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(linkText).then(() => {
+                    showMessage('createMessage', 'Link in Zwischenablage kopiert!', 'success');
+                }).catch(() => {
+                    fallbackCopyTextToClipboard(linkText);
+                });
+            } else {
+                fallbackCopyTextToClipboard(linkText);
+            }
+        }
+
+        function fallbackCopyTextToClipboard(text) {
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            textArea.style.position = "fixed";
+            textArea.style.left = "-999999px";
+            textArea.style.top = "-999999px";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            
+            try {
+                document.execCommand('copy');
+                showMessage('createMessage', 'Link kopiert!', 'success');
+            } catch (err) {
+                showMessage('createMessage', 'Kopieren fehlgeschlagen. Bitte manuell kopieren.', 'error');
+            }
+            
+            document.body.removeChild(textArea);
+        }
+
         // Raum beitreten
         function joinRoom() {
-            const roomCode = document.getElementById('roomCodeInput').value.trim().toUpperCase();
+            const roomCode = document.getElementById('roomCodeInput').value.trim();
             if (!roomCode || roomCode.length !== 2) {
                 showMessage('joinMessage', 'Bitte gib einen 2-stelligen Raum-Code ein!', 'error');
                 return;
             }
 
-            if (!rooms[roomCode]) {
+            const roomData = loadRoomData(roomCode);
+            if (!roomData) {
                 showMessage('joinMessage', 'Raum nicht gefunden!', 'error');
                 return;
             }
 
-            if (rooms[roomCode].participants.includes(userName)) {
+            if (roomData.participants.includes(userName)) {
                 showMessage('joinMessage', 'Du bist bereits in diesem Raum!', 'error');
                 return;
             }
 
-            if (rooms[roomCode].wichtelActive) {
+            if (roomData.wichtelActive) {
                 showMessage('joinMessage', 'Das Wichteln in diesem Raum hat bereits begonnen!', 'error');
                 return;
             }
 
             // Dem Raum beitreten
-            rooms[roomCode].participants.push(userName);
+            roomData.participants.push(userName);
+            saveRoomData(roomCode, roomData);
+            
             currentRoom = roomCode;
             isHost = false;
 
             document.getElementById('currentRoomCode').textContent = roomCode;
-            updateParticipantsList('waitingParticipantsList', rooms[roomCode].participants, rooms[roomCode].host);
+            updateParticipantsList('waitingParticipantsList', roomData.participants, roomData.host);
             showScreen('waitingScreen');
 
             showMessage('joinMessage', 'Erfolgreich dem Raum beigetreten!', 'success');
@@ -419,9 +615,15 @@
         function startWichteln() {
             if (!currentRoom || !isHost) return;
 
-            const participants = rooms[currentRoom].participants;
+            const roomData = loadRoomData(currentRoom);
+            if (!roomData) {
+                showMessage('createMessage', 'Raum-Daten nicht gefunden!', 'error');
+                return;
+            }
+
+            const participants = roomData.participants;
             if (participants.length < 2) {
-                showMessage('createRoomScreen', 'Mindestens 2 Teilnehmer sind erforderlich!', 'error');
+                showMessage('createMessage', 'Mindestens 2 Teilnehmer sind erforderlich!', 'error');
                 return;
             }
 
@@ -444,12 +646,13 @@
             }
 
             // Ergebnisse speichern
-            wichtelResults[currentRoom] = {};
+            roomData.wichtelResults = {};
             for (let i = 0; i < participants.length; i++) {
-                wichtelResults[currentRoom][participants[i]] = receivers[i];
+                roomData.wichtelResults[participants[i]] = receivers[i];
             }
 
-            rooms[currentRoom].wichtelActive = true;
+            roomData.wichtelActive = true;
+            saveRoomData(currentRoom, roomData);
 
             // Ergebnisse anzeigen
             showWichtelResult();
@@ -457,8 +660,14 @@
 
         // Wichtel-Ergebnis anzeigen
         function showWichtelResult() {
-            const yourWichtel = wichtelResults[currentRoom][userName];
-            document.getElementById('yourWichtel').textContent = yourWichtel;
+            const roomData = loadRoomData(currentRoom);
+            if (!roomData || !roomData.wichtelResults) {
+                showMessage('waitingMessage', 'Wichtel-Ergebnisse nicht gefunden!', 'error');
+                return;
+            }
+
+            const yourWichtel = roomData.wichtelResults[userName];
+            document.getElementById('yourWichtel').textContent = yourWichtel || 'Nicht gefunden';
 
             // Host-spezifische Anzeige
             if (isHost) {
@@ -466,7 +675,7 @@
                 const pairsList = document.getElementById('allWichtelPairs');
                 pairsList.innerHTML = '';
 
-                Object.entries(wichtelResults[currentRoom]).forEach(([giver, receiver]) => {
+                Object.entries(roomData.wichtelResults).forEach(([giver, receiver]) => {
                     const div = document.createElement('div');
                     div.className = 'wichtel-pair';
                     div.innerHTML = `<strong>${giver}</strong> wichtelt für <strong>${receiver}</strong>`;
@@ -479,16 +688,18 @@
 
         // Raum verlassen
         function leaveRoom() {
-            if (currentRoom && rooms[currentRoom]) {
-                const index = rooms[currentRoom].participants.indexOf(userName);
-                if (index > -1) {
-                    rooms[currentRoom].participants.splice(index, 1);
+            if (currentRoom) {
+                const roomData = loadRoomData(currentRoom);
+                if (roomData) {
+                    const index = roomData.participants.indexOf(userName);
+                    if (index > -1) {
+                        roomData.participants.splice(index, 1);
+                        saveRoomData(currentRoom, roomData);
+                    }
                 }
                 
-                // Wenn der Host den Raum verlässt, Raum löschen
-                if (isHost) {
-                    delete rooms[currentRoom];
-                }
+                // Hash entfernen
+                window.location.hash = '';
             }
             
             currentRoom = null;
@@ -498,31 +709,30 @@
 
         // Neue Runde starten
         function startOver() {
-            if (currentRoom) {
-                delete wichtelResults[currentRoom];
-                if (rooms[currentRoom]) {
-                    rooms[currentRoom].wichtelActive = false;
-                }
-            }
+            // Hash entfernen
+            window.location.hash = '';
             currentRoom = null;
             isHost = false;
             showScreen('choiceScreen');
         }
 
-        // Simuliere Echtzeit-Updates für Teilnehmer (in einer echten App würde man WebSockets verwenden)
+        // Regelmäßige Updates für Teilnehmer
         setInterval(() => {
-            if (currentRoom && !isHost && rooms[currentRoom]) {
-                // Update der Teilnehmerliste für wartende Spieler
-                if (document.getElementById('waitingScreen').classList.contains('active')) {
-                    updateParticipantsList('waitingParticipantsList', rooms[currentRoom].participants, rooms[currentRoom].host);
-                    
-                    // Prüfen, ob das Wichteln gestartet wurde
-                    if (rooms[currentRoom].wichtelActive && wichtelResults[currentRoom]) {
-                        showWichtelResult();
+            if (currentRoom && !isHost) {
+                const roomData = loadRoomData(currentRoom);
+                if (roomData) {
+                    // Update der Teilnehmerliste für wartende Spieler
+                    if (document.getElementById('waitingScreen').classList.contains('active')) {
+                        updateParticipantsList('waitingParticipantsList', roomData.participants, roomData.host);
+                        
+                        // Prüfen, ob das Wichteln gestartet wurde
+                        if (roomData.wichtelActive && roomData.wichtelResults) {
+                            showWichtelResult();
+                        }
                     }
                 }
             }
-        }, 1000);
+        }, 2000);
 
         // Enter-Taste Support
         document.addEventListener('keypress', function(e) {
@@ -538,6 +748,19 @@
         // Auto-Focus auf Input-Felder
         document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('nameInput').focus();
+        });
+
+        // Beim Laden der Seite prüfen ob Raum in URL
+        window.addEventListener('load', function() {
+            if (window.location.hash) {
+                // Warten bis Name eingegeben wurde
+                const checkName = setInterval(() => {
+                    if (userName) {
+                        clearInterval(checkName);
+                        checkForRoomInURL();
+                    }
+                }, 100);
+            }
         });
     </script>
 </body>
