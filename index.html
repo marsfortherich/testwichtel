@@ -375,14 +375,27 @@
             try {
                 localStorage.setItem(key, jsonData);
                 
-                // Zusätzlich in URL-Hash für Sharing
-                if (isHost) {
+                // Zusätzlich in URL-Hash für Sharing (nur bei wichtigen Updates)
+                if (isHost && (data.wichtelActive || data.participants.length === 1)) {
                     const encoded = btoa(jsonData);
                     window.location.hash = `room=${roomCode}&data=${encoded}`;
                 }
             } catch (e) {
                 console.warn('LocalStorage nicht verfügbar:', e);
             }
+        }
+
+        // Sichere Funktion um Teilnehmer hinzuzufügen
+        function addParticipantToRoom(roomCode, participantName) {
+            const roomData = loadRoomData(roomCode);
+            if (!roomData) return false;
+            
+            if (!roomData.participants.includes(participantName)) {
+                roomData.participants.push(participantName);
+                saveRoomData(roomCode, roomData);
+                return true;
+            }
+            return false;
         }
 
         function loadRoomData(roomCode) {
@@ -576,15 +589,21 @@
                 return;
             }
 
-            // Dem Raum beitreten
-            roomData.participants.push(userName);
-            saveRoomData(roomCode, roomData);
+            // Dem Raum sicher beitreten
+            const success = addParticipantToRoom(roomCode, userName);
+            if (!success) {
+                showMessage('joinMessage', 'Fehler beim Beitreten!', 'error');
+                return;
+            }
             
             currentRoom = roomCode;
             isHost = false;
 
             document.getElementById('currentRoomCode').textContent = roomCode;
-            updateParticipantsList('waitingParticipantsList', roomData.participants, roomData.host);
+            
+            // Aktualisierte Daten laden für Anzeige
+            const updatedRoomData = loadRoomData(roomCode);
+            updateParticipantsList('waitingParticipantsList', updatedRoomData.participants, updatedRoomData.host);
             showScreen('waitingScreen');
 
             showMessage('joinMessage', 'Erfolgreich dem Raum beigetreten!', 'success');
@@ -645,7 +664,7 @@
                 attempts++;
             }
 
-            // Ergebnisse speichern
+            // Ergebnisse speichern - nur Host darf Wichtel-Status ändern
             roomData.wichtelResults = {};
             for (let i = 0; i < participants.length; i++) {
                 roomData.wichtelResults[participants[i]] = receivers[i];
